@@ -12,7 +12,7 @@
 #  See the License for the specific language governing permissions and
 #  limitations under the License.
 FROM eclipse-temurin:17-jre-alpine
-ADD target/time-server-0.0.1-SNAPSHOT.jar /usr/local/lib/time-server-0.0.1-SNAPSHOT.jar
+ADD target/time-server-0.0.1-M1.jar /usr/local/lib/time-server-0.0.1-M1.jar
 EXPOSE 8080
-ENTRYPOINT ["java","-jar","/usr/local/lib/time-server-0.0.1-SNAPSHOT.jar"]
+ENTRYPOINT ["java","-jar","/usr/local/lib/time-server-0.0.1-M1.jar"]
 
