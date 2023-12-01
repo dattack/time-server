@@ -1,0 +1,235 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+# Copyright (c) 2023, The Dattack team (http://www.dattack.com)
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#   http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+-->
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+	xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
+	<modelVersion>4.0.0</modelVersion>
+	<parent>
+		<groupId>org.springframework.boot</groupId>
+		<artifactId>spring-boot-starter-parent</artifactId>
+		<version>3.2.0</version>
+		<relativePath/>
+	</parent>
+	<groupId>com.dattack</groupId>
+	<artifactId>time-server</artifactId>
+	<version>0.0.1-SNAPSHOT</version>
+	<name>time-server</name>
+	<description>A simple time-server using on Spring Boot as a demo to test the integration between Maven, GitHub Actions and Docker.</description>
+	<url>http://www.dattack.com</url>
+	<inceptionYear>2023</inceptionYear>
+	<organization>
+		<name>Dattack Team</name>
+		<url>http://www.dattack.com/</url>
+	</organization>
+	<licenses>
+		<license>
+			<name>Apache License, Version 2.0</name>
+			<url>https://www.apache.org/licenses/LICENSE-2.0.txt</url>
+			<distribution>repo</distribution>
+		</license>
+	</licenses>
+	<developers>
+		<developer>
+			<id>cvarela</id>
+			<name>Carlos Varela</name>
+			<email>cvarela@dattack.com</email>
+			<organization>dattack.com</organization>
+			<organizationUrl>http://www.dattack.com</organizationUrl>
+			<roles>
+				<role>Java Developer</role>
+			</roles>
+			<timezone>Europe/Madrid</timezone>
+		</developer>
+	</developers>
+	<scm>
+		<connection>scm:git:https://github.com/dattack/time-server.git</connection>
+		<developerConnection>scm:git:https://github.com/dattack/time-server.git</developerConnection>
+		<tag>HEAD</tag>
+		<url>http://github.com/dattack/time-server</url>
+	</scm>
+	<issueManagement>
+		<system>GitHub</system>
+		<url>https://github.com/dattack/time-server/issues</url>
+	</issueManagement>
+	<ciManagement>
+		<system>GitHub</system>
+		<url>https://github.com/dattack/time-server/actions</url>
+	</ciManagement>
+
+	<distributionManagement>
+		<repository>
+			<id>ossrh</id>
+			<url>https://oss.sonatype.org/service/local/staging/deploy/maven2/</url>
+		</repository>
+		<snapshotRepository>
+			<id>ossrh</id>
+			<url>https://oss.sonatype.org/content/repositories/snapshots</url>
+		</snapshotRepository>
+		<site>
+			<id>internal-dattack-docs</id>
+			<url>${site.deploy.url}</url>
+		</site>
+	</distributionManagement>
+
+	<properties>
+		<java.version>17</java.version>
+		<compiler.source.version>${java.version}</compiler.source.version>
+		<compiler.target.version>${java.version}</compiler.target.version>
+		<project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+		<docker.url>docker.io</docker.url>
+		<docker.image>dattack/${project.artifactId}:${project.version}</docker.image>
+	</properties>
+
+	<dependencies>
+		<dependency>
+			<groupId>org.springframework.boot</groupId>
+			<artifactId>spring-boot-starter-web</artifactId>
+		</dependency>
+	</dependencies>
+
+	<build>
+		<plugins>
+			<plugin>
+				<groupId>org.springframework.boot</groupId>
+				<artifactId>spring-boot-maven-plugin</artifactId>
+			</plugin>
+			<plugin>
+				<groupId>org.codehaus.mojo</groupId>
+				<artifactId>exec-maven-plugin</artifactId>
+				<version>1.6.0</version>
+				<executions>
+					<!-- Remove existing image from local repo -->
+					<execution>
+						<id>docker-clean</id>
+						<phase>install</phase>
+						<goals>
+							<goal>exec</goal>
+						</goals>
+						<configuration>
+							<executable>docker</executable>
+							<workingDirectory>${project.basedir}</workingDirectory>
+							<arguments>
+								<argument>rmi</argument>
+								<argument>${docker.image}</argument>
+							</arguments>
+							<successCodes>
+								<successCode>0</successCode>
+								<successCode>1</successCode>
+							</successCodes>
+						</configuration>
+					</execution>
+
+					<!--
+                      Create new docker image using Dockerfile which must be present in current working directory.
+                      Tag the image using maven project version information.
+                    -->
+					<execution>
+						<id>docker-build</id>
+						<phase>install</phase>
+						<goals>
+							<goal>exec</goal>
+						</goals>
+						<configuration>
+							<executable>docker</executable>
+							<workingDirectory>${project.basedir}</workingDirectory>
+							<arguments>
+								<argument>build</argument>
+								<argument>-t</argument>
+								<argument>${docker.image}</argument>
+								<argument>.</argument>
+							</arguments>
+						</configuration>
+					</execution>
+
+					<!-- Login and Push the image to a docker repo. -->
+					<execution>
+						<id>docker-login</id>
+						<phase>deploy</phase>
+						<goals>
+							<goal>exec</goal>
+						</goals>
+						<configuration>
+							<executable>docker</executable>
+							<workingDirectory>${project.basedir}</workingDirectory>
+							<longModulepath>false</longModulepath>
+							<arguments>
+								<argument>login</argument>
+								<argument>-u</argument>
+								<argument>${DOCKER_HUB_USERNAME}</argument>
+								<argument>-p</argument>
+								<argument>${DOCKER_HUB_TOKEN}</argument>
+								<argument>${docker.url}</argument>
+							</arguments>
+						</configuration>
+					</execution>
+					<execution>
+						<id>docker-push</id>
+						<phase>deploy</phase>
+						<goals>
+							<goal>exec</goal>
+						</goals>
+						<configuration>
+							<executable>docker</executable>
+							<workingDirectory>${project.basedir}</workingDirectory>
+							<arguments>
+								<argument>push</argument>
+								<argument>${docker.image}</argument>
+							</arguments>
+						</configuration>
+					</execution>
+				</executions>
+			</plugin>
+		</plugins>
+	</build>
+
+	<repositories>
+		<repository>
+			<id>spring-milestones</id>
+			<name>Spring Milestones</name>
+			<url>https://repo.spring.io/milestone</url>
+			<snapshots>
+				<enabled>false</enabled>
+			</snapshots>
+		</repository>
+		<repository>
+			<id>spring-snapshots</id>
+			<name>Spring Snapshots</name>
+			<url>https://repo.spring.io/snapshot</url>
+			<releases>
+				<enabled>false</enabled>
+			</releases>
+		</repository>
+	</repositories>
+	<pluginRepositories>
+		<pluginRepository>
+			<id>spring-milestones</id>
+			<name>Spring Milestones</name>
+			<url>https://repo.spring.io/milestone</url>
+			<snapshots>
+				<enabled>false</enabled>
+			</snapshots>
+		</pluginRepository>
+		<pluginRepository>
+			<id>spring-snapshots</id>
+			<name>Spring Snapshots</name>
+			<url>https://repo.spring.io/snapshot</url>
+			<releases>
+				<enabled>false</enabled>
+			</releases>
+		</pluginRepository>
+	</pluginRepositories>
+
+</project>
